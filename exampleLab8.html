@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bubble Chart – City Populations 2020</title>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Verdana", sans-serif;
+    }
+
+    .node circle {
+      stroke: #3a403d;
+      stroke-width: 0.5px;
+    }
+
+    .node circle:hover {
+      stroke-width: 3px !important;
+      opacity: 1 !important;
+    }
+
+    .tooltip {
+      opacity: 0;
+      background-color: white;
+      border: 2px solid #444;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    #header {
+      text-align: center;
+      padding: 10px;
+    }
+
+    h1 {
+      font-size: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🌍 Bubble Chart of Global City Populations (2020)</h1>
+</div>
+<div id="my_dataviz"></div>
+
+<script>
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+  var nodePadding = 3;
+
+  var svg = d3.select("#my_dataviz")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+  var simulation = d3.forceSimulation()
+    .force("x", d3.forceX(width / 2).strength(0.05))
+    .force("y", d3.forceY(height / 2).strength(0.05))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("charge", d3.forceManyBody().strength(-5));
+
+  // Local or GitHub raw CSV
+  d3.csv("CityData_WUP2018_all.csv", type, function(error, data) {
+    if (error) throw error;
+
+    data = data.sort((a, b) => b.pop2020 - a.pop2020).slice(0, 100); // top 100 cities
+
+    var Tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip");
+
+    var mouseover = function(d) {
+      Tooltip.style("opacity", 1);
+    };
+
+    var mousemove = function(d) {
+      Tooltip
+        .html(`<strong>${d.CityName}, ${d.Country}</strong><br/>Population: ${d3.format(",.1f")(d.pop2020)} million`)
+        .style("left", (d3.event.pageX + 15) + "px")
+        .style("top", (d3.event.pageY - 30) + "px");
+    };
+
+    var mouseleave = function(d) {
+      Tooltip.style("opacity", 0);
+    };
+
+    simulation.nodes(data)
+      .force("collide", d3.forceCollide().radius(d => d.radius + nodePadding).iterations(1))
+      .on("tick", () => {
+        node
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y);
+      });
+
+    var node = svg.append("g")
+      .attr("class", "node")
+      .selectAll("circle")
+      .data(data)
+      .enter().append("circle")
+      .attr("r", d => d.radius)
+      .attr("fill", d => color(d.Country))
+      .on("mouseover", mouseover)
+      .on("mousemove", mousemove)
+      .on("mouseleave", mouseleave)
+      .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended)
+      );
+  });
+
+  function dragstarted(d) {
+    if (!d3.event.active) simulation.alphaTarget(0.03).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
+
+  function dragged(d) {
+    d.fx = d3.event.x;
+    d.fy = d3.event.y;
+  }
+
+  function dragended(d) {
+    if (!d3.event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
+
+  function type(d) {
+    d.pop2020 = +d.pop2020;
+    d.size = d.pop2020;
+    d.radius = Math.sqrt(d.size) * 2; // 📏 use area-proportional sizing
+    return d;
+  }
+</script>
+</body>
+</html>
